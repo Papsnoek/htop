@@ -35,13 +35,14 @@ static void TemperatureMeter_setValues(Meter* this, char* buffer, int len) {
 
 static void TemperatureMeter_display(Object* cast, RichString* out) {
    FILE *p;
-   p = popen("sensors", "r");
-   if(p == NULL) return 1;
+   /*p = popen("sensors", "r");*/
+   p = fopen("/sys/devices/virtual/thermal/thermal_zone0/temp", "r");
+   if (p == NULL)
+        exit(EXIT_FAILURE);
 
    int textColor   = CRT_colors[METER_TEXT];
    int coolColor   = CRT_colors[TEMPERATURE_COOL];
    int mediumColor = CRT_colors[TEMPERATURE_MEDIUM];
-   int hotColor    = CRT_colors[TEMPERATURE_HOT];
 
    size_t read, len;
    char *line = NULL;
@@ -49,46 +50,37 @@ static void TemperatureMeter_display(Object* cast, RichString* out) {
    char *tstart = NULL, *tend = NULL;
    int  temperature;
    while ((read = getline(&line, &len, p)) != -1) {
-      // contains this line a core-temperature?
-      entry = strstr(line, "Core ");
-      if (entry == NULL) continue;
-
-      // find the begin of the temperature value
-      tstart = strchr(entry, '+'); // no negative temperatures expected :)
-      if (tstart == NULL) continue;
-      tstart++; // jump over the '+'
-
-      // find the end of the temperature. Remember, it can be above 99°C ;)
-      tend = strchr(tstart, '.'); // just the integer
-      if (tend == NULL) continue;
-
+      sscanf (line, "%ld", &temperature);
       // convert the string into an integer, this is necessary for further steps
-      temperature = strtol(tstart, &tend, 10);
+      //temperature = strtol(0, read, 10);
       if (temperature == LONG_MAX || temperature == LONG_MIN) continue;
-      if (tstart == tend) continue;
 
       // choose the color for the temperature
       int tempColor;
-      if      (temperature < 80)                      tempColor = coolColor;
-      else if (temperature >= 80 && temperature < 90) tempColor = mediumColor;
+      if      (temperature < 40)                      tempColor = coolColor;
+      else if (temperature >= 40 && temperature < 80) tempColor = mediumColor;
       else                                            tempColor = hotColor;
 
       // output the temperature
       char buffer[20];
       sprintf(buffer, "%d", temperature);
       RichString_append(out, tempColor, buffer);
-      RichString_append(out, textColor, "°C ");
+      RichString_append(out, textColor, "  C ");
    }
 
    free(line);
-   pclose(p);
+   fclose(p);
 }
 
-MeterType TemperatureMeter = {
-   .setValues = TemperatureMeter_setValues,
-   .display = TemperatureMeter_display,
-   .mode = TEXT_METERMODE,
-   .items = 1,
+MeterClass TemperatureMeter_class = {
+   .super = {
+      .extends = Class(Meter),
+      .delete = Meter_delete,
+      .display = TemperatureMeter_display
+   },
+   .updateValues = TemperatureMeter_setValues,
+   .defaultMode = TEXT_METERMODE,
+   .maxItems = 1,
    .total = 100.0,
    .attributes = TemperatureMeter_attributes,
    .name = "Temperature",
