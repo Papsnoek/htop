@@ -43,6 +43,7 @@ static void TemperatureMeter_display(Object* cast, RichString* out) {
    int textColor   = CRT_colors[METER_TEXT];
    int coolColor   = CRT_colors[TEMPERATURE_COOL];
    int mediumColor = CRT_colors[TEMPERATURE_MEDIUM];
+   int hotColor    = CRT_colors[TEMPERATURE_HOT];
 
    size_t read, len;
    char *line = NULL;
